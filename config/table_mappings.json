@@ -1,0 +1,48 @@
+{
+  "schema_version": "or-new-table-mappings-v1",
+  "baseline_policy": {"automatic_merge": false, "read_sealed_database": false, "reason": "New observations are separate; baseline keys, units and source precedence require an independently checked append plan."},
+  "global_rules": {
+    "stage": "provisional_native_candidates",
+    "missing": "Keep absent, null, empty string and explicit zero distinct; no defaults.",
+    "numbers": "Raw JSON uses arbitrary-precision integers/Decimal; numeric CSV/view columns are TEXT.",
+    "variant": "Native variant only; no standard default and no URL/parent variant fill.",
+    "time": "Business labels, response received time, same-owner cachedAt and model created remain separate.",
+    "source": "New live collection; not archive. actual_archive_capture_verified=0 does not deny the recorded live receipt time.",
+    "revisions": "Append native candidates and event links; retain conflicting states. Do not select maximum/latest values.",
+    "selection": "General views are candidate views. Only table1_daily_increment applies a conservative per-response UTC/cache/core screen, requires native nonblank string identity/variant and a date-only or midnight label, withholds same-logical-key raw revisions, and selects only the active fully imported extractor signature. It still is not a final or baseline-merged table. Charts retain whole vectors and are not selected row by row.",
+    "unknown_fields": "Every native row and all original response bytes remain retrievable; unsupported structures are logged, not silently mapped."
+  },
+  "tables": [
+    {"table": "table1_daily", "view": "v_table1_daily", "screened_view": "v_table1_daily_increment", "source_roles": ["model_activity", "model_page"], "paths": ["/data/analytics/*", "exact model-page/appStats query.state.data native analytics/model_chart arrays via native_html"], "status": "conditional_schema_mapping_provisional", "native_key": ["model_permaslug", "date", "variant field state and raw value", "statistics/request scope"], "core_columns": ["count", "total_prompt_tokens", "total_completion_tokens"], "never_use": ["rankings_models day/week/month as daily analytics", "currentVariant as missing native variant", "count as proven successful requests", "media count as proven requests", "total_tool_calls as a proven historical error-rate denominator"], "selection": "Only mechanically screened, unchanged logical states; UTC screening does not prove original business timezone or finality."},
+    {"table": "market_share", "view": "v_market_share", "source_roles": ["market_share"], "paths": ["/data/*/{x,ys}", "/data/data/*/{x,ys}"], "status": "whole_vector_candidate", "metric_unit": "unknown; do not transfer old tokens definition to text-request-share charts"},
+    {"table": "leaderboard", "view": "v_leaderboard", "source_roles": ["leaderboard"], "paths": ["/data/*/{x,ys}", "/data/data/*/{x,ys}"], "status": "whole_vector_candidate", "metric_unit": "token lineage/normalization unconfirmed for this response"},
+    {"table": "tools", "view": "v_tools", "source_roles": ["tools"], "status": "whole_vector_candidate", "metric_unit": "tool-call counting definition unconfirmed; not tokens"},
+    {"table": "images", "view": "v_images", "source_roles": ["images"], "status": "whole_vector_candidate", "metric_unit": "images processed definition unconfirmed; not proven request count"},
+    {"table": "categories", "view": "v_categories", "source_roles": ["categories"], "status": "whole_vector_candidate_requires_filter_validation", "selector": "params preserved case-sensitively; request filter is not verified response filter"},
+    {"table": "programming_languages", "view": "v_programming_languages", "source_roles": ["programming_languages"], "status": "whole_vector_candidate_requires_filter_validation"},
+    {"table": "natural_languages", "view": "v_natural_languages", "source_roles": ["natural_languages"], "status": "whole_vector_candidate_requires_filter_validation"},
+    {"table": "context_length", "view": "v_context_length", "source_roles": ["context_length"], "status": "whole_vector_candidate_requires_filter_validation"},
+    {"table": "rankings_history", "view": "v_rankings_history", "source_roles": ["rankings_models"], "paths": ["/data/*"], "status": "native_snapshot_candidate", "window": "params.view kept distinct; no daily-record claim", "native_rank": "Only explicit rank; array position is not official rank", "unsupported": "Historical HTML rankMap/rankingData extraction is not included in this first live-ingest release."},
+    {"table": "model_attributes_current", "view": "v_model_attributes", "source_roles": ["catalog"], "paths": ["/data/*"], "status": "catalog_observations_no_automatic_latest_selector", "native_key": ["id", "native variant state/value", "catalog request scope"], "price_scope": "Original pricing object only; top_provider limits separate from model-wide limits; unknown unit not imputed", "classification": "HF ID is not an open/closed-license classifier"},
+    {"table": "provider_endpoints", "view": "v_provider_endpoints", "source_roles": ["model_endpoints"], "paths": ["/data/endpoints/*"], "status": "explicit_endpoint_object_candidate", "native_key": ["original endpoint id", "parent response/request context", "native variant state/value"], "limits": "Missing endpoint id/model/variant stays missing. No provider-name to UUID conversion."},
+    {"table": "model_attributes_history", "view": "v_model_attributes_history", "source_roles": ["catalog"], "status": "same_candidate_reference_as_current_catalog", "limits": "History is formed by retained live receipt events. It is not another independent sample or historical backfill. No current price fills old dates. Full historical HTML attributes not parsed by this release."},
+    {"table": "audio_dashboard", "view": "v_audio", "source_roles": ["audio"], "status": "whole_vector_candidate", "metric_unit": "unknown; legacy audio input is not automatically modern output audio/tokens/seconds/requests"},
+    {"table": "benchmarks", "view": "v_benchmarks", "source_roles": ["benchmarks"], "paths": ["/data/aaData/{metric}/*", "/data/daData/{metric}/*", "/data/weightedInputPrices/*", "/data/costPerRequest/*"], "status": "named_metric_candidate", "limits": "Metric namespaces and original names retained. Cost list position never becomes score or monetary price; evaluation date/scale/version unknown."},
+    {"table": "fastest_models", "view": "v_fastest_models", "source_roles": ["fastest_models"], "paths": ["/data/*"], "status": "native_performance_vector_candidate", "limits": "No fastest/latency rank is invented. p50_latency/throughput/request_count units and measurement window unverified. Shared vector must not be added across two displayed sorts."}
+  ],
+  "auxiliary_views": {
+    "v_provider_directory": "providers /data array; not endpoint UUID observations",
+    "v_endpoint_performance_aux": "endpoint_stats /data array; not daily model activity",
+    "v_effective_pricing_aux": "effective_pricing /data/providerSummaries; not model catalog price",
+    "v_zdr_aux": "zdr /data array only; alternate schema explicitly unparsed"
+  },
+  "unmapped_roles": ["rankings_page", "rankings_discovery", "modality_chart"],
+  "excluded_table": "HuggingFace repository table",
+  "local_evidence_reviewed": [
+    "sealed 01–07 dashboard field descriptions and shared/official JSON shapes",
+    "sealed 08 rankings_history, 09 model_attributes_current, 10 provider_endpoints, 11 model_attributes_history field descriptions",
+    "sealed 12 audio_dashboard, 13 benchmarks, 14 fastest_models field descriptions",
+    "Daily-OpenRouter-Scrape-main7/Openrouter_update.py response paths, excluding its default-zero/default-standard and monthly interpretation",
+    "independently checked same-owner model-page/appStats native_html parser"
+  ]
+}

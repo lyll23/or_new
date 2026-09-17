@@ -1,0 +1,559 @@
+{
+  "schema_version": 1,
+  "scope": "complete_current_public_all_output_modalities_catalog_and_every_model_for_all_registered_endpoints",
+  "catalog": {
+    "endpoint": "catalog",
+    "url": "https://openrouter.ai/api/v1/models",
+    "params": {
+      "output_modalities": "all"
+    },
+    "expected": "json",
+    "stability": "documented_public",
+    "evidence": "https://openrouter.ai/docs/guides/overview/models"
+  },
+  "http": {
+    "timeout_seconds": 45,
+    "retries": 2,
+    "workers": 4,
+    "min_interval_seconds": 0.35,
+    "max_retry_after_seconds": 300
+  },
+  "global": [
+    {
+      "endpoint": "providers",
+      "url": "https://openrouter.ai/api/frontend/v1/providers",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Existing main7 daily collectors; current responses must be checked, errors remain partial"
+    },
+    {
+      "endpoint": "zdr",
+      "url": "https://openrouter.ai/api/v1/endpoints/zdr",
+      "stability": "documented_public",
+      "expected": "json",
+      "evidence": "Existing main7 daily collectors; current responses must be checked, errors remain partial"
+    },
+    {
+      "endpoint": "rankings_page",
+      "url": "https://openrouter.ai/rankings",
+      "expected": "html",
+      "stability": "public_page",
+      "evidence": "Existing main7 daily collectors; current responses must be checked, errors remain partial"
+    },
+    {
+      "endpoint": "rankings_discovery",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/discovery",
+      "evidence": "Previously retained official frontend component modalityChartOptions/discovery",
+      "expected": "json",
+      "stability": "frontend_undocumented"
+    },
+    {
+      "endpoint": "leaderboard",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/model-rankings-chart",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Existing main7 daily collectors; current responses must be checked, errors remain partial"
+    },
+    {
+      "endpoint": "market_share",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/market-share",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Existing main7 daily collectors; current responses must be checked, errors remain partial"
+    },
+    {
+      "endpoint": "tools",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/tools",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Existing main7 daily collectors; current responses must be checked, errors remain partial"
+    },
+    {
+      "endpoint": "images",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/images",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Existing main7 daily collectors; current responses must be checked, errors remain partial"
+    },
+    {
+      "endpoint": "audio",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/audio",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Existing main7 daily collectors; current responses must be checked, errors remain partial"
+    },
+    {
+      "endpoint": "rankings_apps",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/apps",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Official https://openrouter.ai/_next/static/immutable/chunks/1sqkj33u7ctuz.js retained 2026-09-16; SHA256 88b41cf5faa722818186691533fc85e82931db91a475d21082e4e1cc00bf960d; appRankingsOptions calls this exact URL without searchParams. Separate source; current response schema and availability require validation."
+    },
+    {
+      "endpoint": "image_output",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/image-output",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Official https://openrouter.ai/_next/static/immutable/chunks/1sqkj33u7ctuz.js retained 2026-09-16; SHA256 88b41cf5faa722818186691533fc85e82931db91a475d21082e4e1cc00bf960d; modalityGeneratedChartOptions image endpoint, responseShape=list, no searchParams. Independent from the legacy images input-processing chart."
+    },
+    {
+      "endpoint": "rerank_documents",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/rerank-documents",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Official https://openrouter.ai/_next/static/immutable/chunks/1sqkj33u7ctuz.js retained 2026-09-16; SHA256 88b41cf5faa722818186691533fc85e82931db91a475d21082e4e1cc00bf960d; modalityGeneratedChartOptions rerank endpoint, responseShape=list, no searchParams. Capture raw response; exact units and window remain unverified."
+    },
+    {
+      "endpoint": "stt_transcript_characters",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/stt-transcript-characters",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Official https://openrouter.ai/_next/static/immutable/chunks/1sqkj33u7ctuz.js retained 2026-09-16; SHA256 88b41cf5faa722818186691533fc85e82931db91a475d21082e4e1cc00bf960d; modalityGeneratedChartOptions transcription endpoint, responseShape=data-envelope, no searchParams. Independent from the legacy audio chart."
+    },
+    {
+      "endpoint": "video_output_hours",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/video-output-hours",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Official https://openrouter.ai/_next/static/immutable/chunks/1sqkj33u7ctuz.js retained 2026-09-16; SHA256 88b41cf5faa722818186691533fc85e82931db91a475d21082e4e1cc00bf960d; modalityGeneratedChartOptions video endpoint, responseShape=data-envelope, no searchParams. Capture raw response; exact units and window remain unverified."
+    },
+    {
+      "endpoint": "session_cost",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/session-cost",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Official https://openrouter.ai/_next/static/immutable/chunks/1sqkj33u7ctuz.js retained 2026-09-16; SHA256 88b41cf5faa722818186691533fc85e82931db91a475d21082e4e1cc00bf960d; sessionCostRankingsOptions calls this exact URL without searchParams. Independent source, not a replacement for catalog token pricing."
+    },
+    {
+      "endpoint": "task_spend",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/task-spend",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Official https://openrouter.ai/_next/static/immutable/chunks/1sqkj33u7ctuz.js retained 2026-09-16; SHA256 88b41cf5faa722818186691533fc85e82931db91a475d21082e4e1cc00bf960d; taskSpendRankingsOptions calls this exact URL without searchParams, then selects a property client-side. Retain the complete response without applying that selection."
+    },
+    {
+      "endpoint": "benchmarks",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/benchmarks",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Existing main7 daily collectors; current responses must be checked, errors remain partial"
+    },
+    {
+      "endpoint": "fastest_models",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/performance",
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Existing main7 daily collectors; current responses must be checked, errors remain partial"
+    },
+    {
+      "endpoint": "rankings_models",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/models",
+      "parameter_sets": [
+        {
+          "view": "day"
+        },
+        {
+          "view": "week"
+        },
+        {
+          "view": "month"
+        }
+      ],
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "Existing main7 daily collectors; current responses must be checked, errors remain partial"
+    },
+    {
+      "endpoint": "modality_chart",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/modality-chart",
+      "params": {
+        "routeSegment": "text"
+      },
+      "evidence": "2026-09-16 retained official modalityChartOptions component and response; distinct from legacy token charts",
+      "expected": "json",
+      "stability": "frontend_undocumented"
+    },
+    {
+      "endpoint": "categories",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/use-case-category",
+      "parameter_sets": [
+        {
+          "category": "programming"
+        },
+        {
+          "category": "roleplay"
+        },
+        {
+          "category": "marketing"
+        },
+        {
+          "category": "marketing/seo"
+        },
+        {
+          "category": "technology"
+        },
+        {
+          "category": "science"
+        },
+        {
+          "category": "translation"
+        },
+        {
+          "category": "legal"
+        },
+        {
+          "category": "finance"
+        },
+        {
+          "category": "health"
+        },
+        {
+          "category": "trivia"
+        },
+        {
+          "category": "academia"
+        }
+      ],
+      "evidence": "Existing run936_slices.py parameter registry; retained discovery response must be reviewed for new selectors",
+      "registry_is_exhaustive_for_unpublished_filters": false,
+      "expected": "json",
+      "stability": "frontend_undocumented"
+    },
+    {
+      "endpoint": "natural_languages",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/natural-language",
+      "parameter_sets": [
+        {
+          "tag": "English"
+        },
+        {
+          "tag": "French"
+        },
+        {
+          "tag": "Portuguese"
+        },
+        {
+          "tag": "German"
+        },
+        {
+          "tag": "Romanian"
+        },
+        {
+          "tag": "Swedish"
+        },
+        {
+          "tag": "Danish"
+        },
+        {
+          "tag": "Bulgarian"
+        },
+        {
+          "tag": "Russian"
+        },
+        {
+          "tag": "Czech"
+        },
+        {
+          "tag": "Greek"
+        },
+        {
+          "tag": "Ukrainian"
+        },
+        {
+          "tag": "Spanish"
+        },
+        {
+          "tag": "Dutch"
+        },
+        {
+          "tag": "Slovak"
+        },
+        {
+          "tag": "Croatian"
+        },
+        {
+          "tag": "Polish"
+        },
+        {
+          "tag": "Lithuanian"
+        },
+        {
+          "tag": "Norwegian"
+        },
+        {
+          "tag": "Persian"
+        },
+        {
+          "tag": "Slovenian"
+        },
+        {
+          "tag": "Italian"
+        },
+        {
+          "tag": "Nepali"
+        },
+        {
+          "tag": "Belarusian"
+        },
+        {
+          "tag": "Serbian"
+        },
+        {
+          "tag": "Welsh"
+        },
+        {
+          "tag": "Awadhi"
+        },
+        {
+          "tag": "Hindi"
+        },
+        {
+          "tag": "Punjabi"
+        },
+        {
+          "tag": "Bengali"
+        },
+        {
+          "tag": "Lombard"
+        },
+        {
+          "tag": "Galician"
+        },
+        {
+          "tag": "Catalan"
+        },
+        {
+          "tag": "Icelandic"
+        },
+        {
+          "tag": "Tosk Albanian"
+        },
+        {
+          "tag": "Limburgish"
+        },
+        {
+          "tag": "Bosnian"
+        },
+        {
+          "tag": "Armenian"
+        },
+        {
+          "tag": "Chinese (Simplified)"
+        },
+        {
+          "tag": "Chinese (Traditional)"
+        },
+        {
+          "tag": "Cantonese"
+        },
+        {
+          "tag": "Burmese"
+        },
+        {
+          "tag": "Arabic"
+        },
+        {
+          "tag": "Hebrew"
+        },
+        {
+          "tag": "Maltese"
+        },
+        {
+          "tag": "Indonesian"
+        },
+        {
+          "tag": "Malay"
+        },
+        {
+          "tag": "Tagalog"
+        },
+        {
+          "tag": "Kannada"
+        },
+        {
+          "tag": "Turkish"
+        },
+        {
+          "tag": "Thai"
+        },
+        {
+          "tag": "Lao"
+        },
+        {
+          "tag": "Finnish"
+        },
+        {
+          "tag": "Estonian"
+        },
+        {
+          "tag": "Hungarian"
+        },
+        {
+          "tag": "Vietnamese"
+        },
+        {
+          "tag": "Japanese"
+        },
+        {
+          "tag": "Korean"
+        }
+      ],
+      "evidence": "Existing run936_slices.py parameter registry; retained discovery response must be reviewed for new selectors",
+      "registry_is_exhaustive_for_unpublished_filters": false,
+      "expected": "json",
+      "stability": "frontend_undocumented"
+    },
+    {
+      "endpoint": "programming_languages",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/programming-language",
+      "parameter_sets": [
+        {
+          "tag": "Python"
+        },
+        {
+          "tag": "JavaScript"
+        },
+        {
+          "tag": "TypeScript"
+        },
+        {
+          "tag": "Java"
+        },
+        {
+          "tag": "Ruby"
+        },
+        {
+          "tag": "C"
+        },
+        {
+          "tag": "C++"
+        },
+        {
+          "tag": "C#"
+        },
+        {
+          "tag": "Go"
+        },
+        {
+          "tag": "Rust"
+        },
+        {
+          "tag": "SQL"
+        },
+        {
+          "tag": "Perl"
+        },
+        {
+          "tag": "Visual Basic"
+        },
+        {
+          "tag": "Fortran"
+        },
+        {
+          "tag": "MATLAB"
+        },
+        {
+          "tag": "Swift"
+        },
+        {
+          "tag": "Lua"
+        }
+      ],
+      "evidence": "Existing run936_slices.py parameter registry; retained discovery response must be reviewed for new selectors",
+      "registry_is_exhaustive_for_unpublished_filters": false,
+      "expected": "json",
+      "stability": "frontend_undocumented"
+    },
+    {
+      "endpoint": "context_length",
+      "url": "https://openrouter.ai/api/frontend/v1/rankings/context-length",
+      "parameter_sets": [
+        {
+          "bucket": "1K"
+        },
+        {
+          "bucket": "10K"
+        },
+        {
+          "bucket": "100K"
+        },
+        {
+          "bucket": "1M"
+        },
+        {
+          "bucket": "10M"
+        },
+        {
+          "bucket": "100M"
+        },
+        {
+          "bucket": "1B"
+        },
+        {
+          "bucket": "10B"
+        }
+      ],
+      "evidence": "Existing run936_slices.py parameter registry; retained discovery response must be reviewed for new selectors",
+      "registry_is_exhaustive_for_unpublished_filters": false,
+      "expected": "json",
+      "stability": "frontend_undocumented"
+    }
+  ],
+  "per_model": [
+    {
+      "endpoint": "model_endpoints",
+      "url_template": "https://openrouter.ai/api/v1/models/{model_id_path}/endpoints",
+      "expected": "json",
+      "stability": "documented_public",
+      "evidence": "https://openrouter.ai/docs/api/api-reference/endpoints/list-all-endpoints-for-a-model"
+    },
+    {
+      "endpoint": "endpoint_stats",
+      "url_template": "https://openrouter.ai/api/frontend/v1/stats/endpoint",
+      "params": {
+        "permaslug": "{permaslug}",
+        "variant": "{query_variant}"
+      },
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "scrape_providers_v2.py"
+    },
+    {
+      "endpoint": "model_activity",
+      "url_template": "https://openrouter.ai/api/frontend/stats/model-activity",
+      "params": {
+        "permaslug": "{permaslug}",
+        "variant": "{query_variant}"
+      },
+      "expected": "json",
+      "stability": "frontend_undocumented_legacy_observed",
+      "evidence": "Previously retained per-model activity responses and parent-directory Openrouter_update.py"
+    },
+    {
+      "endpoint": "effective_pricing",
+      "url_template": "https://openrouter.ai/api/frontend/v1/stats/effective-pricing",
+      "params": {
+        "permaslug": "{permaslug}",
+        "variant": "{query_variant}",
+        "shape": "v7"
+      },
+      "expected": "json",
+      "stability": "frontend_undocumented",
+      "evidence": "scrape_token_share_1d.py"
+    },
+    {
+      "endpoint": "model_page",
+      "url_template": "https://openrouter.ai/{model_id_path}",
+      "expected": "html",
+      "stability": "public_page",
+      "evidence": "latency_daliy.py and scrape_providers_v2.py; retain full page including activity/app data when present"
+    }
+  ],
+  "limitations": [
+    "No claim to enumerate undisclosed or inaccessible historical models or undocumented endpoints not in this registry.",
+    "No model sampling or model-count truncation. An unavailable catalog prevents a false complete claim.",
+    "Known selector registry is versioned; discovery and full rankings page are captured for additions and schema drift review.",
+    "A request default variant=standard is not evidence that an absent native variant field means standard.",
+    "Current public responses are observations at individual request times, not one simultaneous snapshot."
+  ]
+}
