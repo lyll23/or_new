@@ -1,0 +1,25 @@
+name: Install reviewed source once
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  install:
+    if: github.repository == 'lyll23/or_new' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+      - name: Verify and install only the 21 reviewed source files
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, io, pathlib, zipfile
+          p = pathlib.Path('or-new-source-bootstrap.zip')
+          expected = '53edf6bdacd1f3344a7b6b7c4d607f0e9eaae79d3a5395506a6f1dc0e252ae09'
+          blob = p.read_bytes()
+          assert hashlib.sha256(blob).hexdigest() == expected, 'ZIP SHA mismatch'
+          with zipfile.ZipFile(io.BytesIO(blob)) as z:
+              code = z.read('_bootstrap/install.py')
+          exec(compile(code, '_bootstrap/install.py', 'exec'), {'__name__': '__main__', 'SOURCE_ZIP': str(p), 'SOURCE_SHA256': expected})
+          PY
