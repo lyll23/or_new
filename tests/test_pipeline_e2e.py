@@ -5,7 +5,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 
 from or_pipeline.collector import DEFAULT_CONFIG, run_collection
 from or_pipeline.http_capture import CaptureClient
@@ -38,12 +38,19 @@ class PipelineTests(unittest.TestCase):
             path, query = urlsplit(url).path, parse_qs(urlsplit(url).query)
             if path == '/api/v1/models':
                 return SyntheticResponse(url, {'data': models})
-            if path.endswith('/model-activity'):
-                row = {'model_permaslug': query['permaslug'][0], 'variant': query['variant'][0],
+            if unquote(path) in ('/synthetic/model', '/synthetic/model:free'):
+                # Both native variant values are explicit fixture data, not inferred during ingestion.
+                variant = 'free' if unquote(path) == '/synthetic/model:free' else 'standard'
+                row = {'model_permaslug': 'synthetic/model-v1', 'variant': variant,
                        'date': '2026-09-15T00:00:00Z', 'count': 0,
                        'total_prompt_tokens': 9007199254740995, 'total_completion_tokens': 3,
                        'future_counter': 12}
-                return SyntheticResponse(url, {'data': {'analytics': [row], 'cachedAt': 1789516800000}})
+                native_query = {'queryKey': ['model-page', 'appStats', {
+                    'permaslug': 'synthetic/model-v1', 'variant': variant}],
+                    'state': {'data': {'model_chart': [row], 'cachedAt': 1789516800000}}}
+                frame = '1:' + json.dumps(native_query) + '\n'
+                page = '<!doctype html><html><script>self.__next_f.push([1,' + json.dumps(frame) + '])</script></html>'
+                return SyntheticResponse(url, page, mime='text/html')
             if path.endswith('/stats/endpoint'):
                 return SyntheticResponse(url, {'error': 'synthetic unauthorized'}, 401)
             if not path.startswith('/api/'):
@@ -63,6 +70,10 @@ class PipelineTests(unittest.TestCase):
             quality = json.loads((batch/'quality.json').read_text())
             self.assertTrue(quality['all_catalog_models_planned'])
             self.assertEqual(quality['models_with_all_requests_attempted'], len(models))
+            global_count = sum(len(d.get('parameter_sets', [d.get('params', {})])) for d in config['global'])
+            expected_requests = 1 + global_count + len(models) * len(config['per_model'])
+            self.assertEqual(quality['planned_requests'], expected_requests)
+            self.assertEqual(quality['attempted_requests'], expected_requests)
             manifest = build(batch, packages, part_bytes=4096)
             received, receipt = receive_package(manifest.read_bytes(), packages, local)
             self.assertTrue(receipt.exists())

@@ -5,8 +5,10 @@ import hashlib
 import http.client
 import io
 import json
+import os
 import tempfile
 import unittest
+from unittest.mock import patch
 import urllib.error
 import urllib.parse
 
@@ -227,6 +229,42 @@ class CollectorPlanTests(unittest.TestCase):
         self.assertEqual(sum(r["model_id"] is not None for r in plan), 71 * len(c["per_model"]))
         self.assertEqual({r["model_id"] for r in plan if r["model_id"]}, {m["id"] for m in models})
 
+    def test_first_full_run_retirements_keep_evidence_out_of_active_plan(self):
+        c = json.loads(DEFAULT_CONFIG.read_text(encoding="utf8"))
+        models = [{"id": "fixture/one"}, {"id": "fixture/two:free"}]
+        plan = build_non_catalog_plan(c, models, True)
+        self.assertEqual({d["endpoint"] for d in c["per_model"]},
+                         {"model_endpoints", "endpoint_stats", "effective_pricing", "model_page"})
+        self.assertEqual(len(plan), 114 + 4 * len(models))
+        self.assertEqual(1 + len(plan), 1 + 114 + 4 * len(models))
+        self.assertFalse({"model_activity", "audio"} & {r["endpoint"] for r in plan})
+        buckets = {r["params"]["bucket"] for r in plan if r["endpoint"] == "context_length"}
+        self.assertEqual(buckets, {"1K", "10K", "100K", "1M", "10M"})
+        retired = c["retired_sources"]
+        self.assertEqual(len(retired), 6)
+        self.assertEqual(sum(r["evidence"]["observed_request_count"] for r in retired), 604)
+        for row in retired:
+            self.assertTrue(row["permanent_removal_not_claimed"])
+            self.assertTrue(row["historical_responses_and_records_retained"])
+            evidence = row["evidence"]
+            self.assertEqual(evidence["github_run_id"], 35190727906)
+            self.assertEqual(evidence["manifest_sha256"],
+                             "f2204841919a0b4cf57bf8fb3d7dd293d204990cdbb07befbc6c63c01b3b09d5")
+            self.assertEqual(len(evidence["manifest_lines"]), evidence["observed_attempt_count"])
+            self.assertIn("evidence", row["original_definition"])
+
+    def test_public_provider_api_and_page_are_separate_requests(self):
+        c = json.loads(DEFAULT_CONFIG.read_text(encoding="utf8"))
+        plan = build_non_catalog_plan(c, [], True)
+        providers = [r for r in plan if r["endpoint"] in {"providers", "providers_page"}]
+        self.assertEqual(len(providers), 2)
+        self.assertEqual({(r["endpoint"], r["url"], r["expected"]) for r in providers}, {
+            ("providers", "https://openrouter.ai/api/v1/providers", "json"),
+            ("providers_page", "https://openrouter.ai/providers", "html"),
+        })
+        self.assertEqual(len({r["request_id"] for r in providers}), 2)
+        self.assertTrue(all(r["params"] == {} for r in providers))
+
     def test_seven_observed_parameterless_sources_are_independent_requests(self):
         c = json.loads(DEFAULT_CONFIG.read_text(encoding="utf8"))
         expected = {"rankings_apps": "apps", "image_output": "image-output",
@@ -365,6 +403,32 @@ class CatalogAndRunTests(unittest.TestCase):
         self.assertEqual(q["models_with_all_requests_attempted"], len(models))
         self.assertEqual(q["not_attempted_requests"], 0)
         self.assertEqual(q["errors"][0]["status"], 401)
+
+    def test_run_source_revision_and_exact_code_hashes(self):
+        from or_pipeline import collector
+        environment = {"GITHUB_REPOSITORY": "synthetic/repo", "GITHUB_SHA": "a" * 40,
+                       "GITHUB_WORKFLOW_REF": "synthetic/repo/.github/workflows/collect.yml@refs/heads/main",
+                       "GITHUB_TOKEN": "synthetic-secret-must-not-be-recorded"}
+        with patch.dict(os.environ, environment, clear=True):
+            code, quality, models = self.run_fixture(count=2)
+        self.assertEqual(code, 0)
+        run_text = (self.output / "run.json").read_text()
+        run = json.loads(run_text)
+        for key in ("REPOSITORY", "SHA", "WORKFLOW_REF"):
+            self.assertEqual(run["github_" + key.lower()], environment["GITHUB_" + key])
+        expected = {name: hashlib.sha256(Path(collector.__file__).with_name(name).read_bytes()).hexdigest()
+                    for name in ("collector.py", "http_capture.py", "configuration.py")}
+        self.assertEqual(run["source_code_sha256"], expected)
+        self.assertNotIn(environment["GITHUB_TOKEN"], run_text)
+        self.assertEqual(quality["planned_requests"], 3)
+
+    def test_local_run_revision_fields_explicitly_missing(self):
+        with patch.dict(os.environ, {}, clear=True):
+            code, _, _ = self.run_fixture(count=1)
+        self.assertEqual(code, 0)
+        run = json.loads((self.output / "run.json").read_text())
+        self.assertTrue(all(run[key] is None for key in ("github_repository", "github_sha", "github_workflow_ref")))
+        self.assertEqual(set(run["source_code_sha256"]), {"collector.py", "http_capture.py", "configuration.py"})
 
     def test_existing_output_not_overwritten(self):
         self.output.mkdir()

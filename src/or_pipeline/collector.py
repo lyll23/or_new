@@ -319,6 +319,11 @@ def run_collection(output, *, config_path=None, config=None, workers=None, clien
            "started_at_utc": started, "finished_at_utc": None, "collector_version": VERSION,
            "status": "initializing", "github_run_id": os.environ.get("GITHUB_RUN_ID"),
            "github_run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+           "github_repository": os.environ.get("GITHUB_REPOSITORY"),
+           "github_sha": os.environ.get("GITHUB_SHA"),
+           "github_workflow_ref": os.environ.get("GITHUB_WORKFLOW_REF"),
+           "source_code_sha256": {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
+                                  for name in ("collector.py", "http_capture.py", "configuration.py")},
            "no_model_sampling": True, "credentials_sent_to_data_source": False}
     catalog = {"verified": False, "models": [], "model_count": 0, "catalog_errors": ["catalog_not_completed"]}
     plan = {"schema_version": 1, "run_id": run["run_id"], "requests": [], "model_plan_complete": False,

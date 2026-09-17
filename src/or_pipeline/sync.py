@@ -345,7 +345,7 @@ def ingest_received(root, runner=subprocess.run, signature=None, audit_local=Fal
         else:
             try:
                 with out_path.open('wb') as out, err_path.open('wb') as err:
-                    proc = runner([sys.executable, '-m', 'or_pipeline.ingest', '--batch', rec['batch'], '--database', str(database)], stdout=out, stderr=err, check=False)
+                    proc = runner([sys.executable, '-X', 'utf8', '-m', 'or_pipeline.ingest', '--batch', rec['batch'], '--database', str(database)], stdout=out, stderr=err, check=False)
                 code, error = proc.returncode, None
             except OSError as exc:
                 code, error = None, str(exc)
