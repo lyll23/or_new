@@ -1,0 +1,76 @@
+name: Preserve full OpenRouter research captures
+
+on:
+  schedule:
+    - cron: '23 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: openrouter-research-capture
+  queue: max
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      BATCH_DIR: runs/${{ github.run_id }}-${{ github.run_attempt }}
+      PACKAGE_DIR: packages/${{ github.run_id }}-${{ github.run_attempt }}
+      PYTHONUNBUFFERED: '1'
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - name: Check the standard-library pipeline before collection
+        run: python -m unittest discover -s tests -v
+      - name: Capture the complete public model catalog and its planned endpoints
+        id: capture
+        timeout-minutes: 240
+        continue-on-error: true
+        run: python -m or_pipeline.collector --output "$BATCH_DIR"
+      - name: Package all retained originals, including partial or quality-failed runs
+        id: package
+        if: always() && steps.capture.outcome != 'skipped'
+        shell: bash
+        run: |
+          manifest="$(python -m or_pipeline.package build --batch "$BATCH_DIR" --out "$PACKAGE_DIR")"
+          printf 'manifest=%s\n' "$manifest" >> "$GITHUB_OUTPUT"
+      - name: Publish immutable monthly Release assets, manifest last
+        id: publish
+        if: always() && steps.package.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_MANIFEST: ${{ steps.package.outputs.manifest }}
+        run: python -m or_pipeline.package publish --manifest "$PACKAGE_MANIFEST" --repository "$GITHUB_REPOSITORY"
+      - name: Rescue originals for 14 days when Release publication fails
+        if: always() && steps.capture.outcome != 'skipped' && steps.publish.outcome != 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-upload-rescue-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.BATCH_DIR }}/
+            ${{ env.PACKAGE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+          include-hidden-files: true
+      - name: Preserve failure signals after attempting to save originals
+        if: always()
+        env:
+          CAPTURE_OUTCOME: ${{ steps.capture.outcome }}
+          PACKAGE_OUTCOME: ${{ steps.package.outcome }}
+          PUBLISH_OUTCOME: ${{ steps.publish.outcome }}
+        shell: bash
+        run: |
+          if [[ "$CAPTURE_OUTCOME" != success || "$PACKAGE_OUTCOME" != success || "$PUBLISH_OUTCOME" != success ]]; then
+            printf 'Capture=%s; package=%s; publish=%s. Review retained raw data and quality.json.\n' "$CAPTURE_OUTCOME" "$PACKAGE_OUTCOME" "$PUBLISH_OUTCOME"
+            exit 1
+          fi
