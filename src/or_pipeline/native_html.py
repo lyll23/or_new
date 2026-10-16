@@ -6,6 +6,7 @@ No JavaScript is executed; unsupported representations stay explicit issues.
 """
 from __future__ import annotations
 from collections import defaultdict
+from bisect import bisect_left
 from dataclasses import dataclass,field
 from decimal import Decimal
 import datetime as dt,email.utils,hashlib,json,re
@@ -69,6 +70,45 @@ class Document:
                 pos=self.text.find('\n',start)
                 if pos<0:break
         self.text_sha256=hashlib.sha256(self.text.encode('utf-8')).hexdigest()
+        self._build_binding_indexes()
+
+    def _build_binding_indexes(self):
+        # A Document is parsed once and never mutated while binding rows. Keep
+        # node-order indexes, including partial nodes from malformed frames;
+        # filtering must not change ambiguity checks or evidence/error order.
+        self._duplicate_key_starts=[]
+        self._owners_by_key={key:[] for key in DAILY_KEYS}
+        self._query_nodes=[]
+        references=[]
+        for order,node in enumerate(self.nodes):
+            if node.duplicate_keys:self._duplicate_key_starts.append(node.start)
+            if isinstance(node.value,dict):
+                for key in node.children:
+                    if key in self._owners_by_key:self._owners_by_key[key].append(node)
+                if 'queryKey' in node.children:self._query_nodes.append(node)
+            elif isinstance(node.value,str) and REF.fullmatch(node.value):
+                references.append((node.start,order,node))
+        self._duplicate_key_starts.sort()
+        references.sort(key=lambda item:item[0])
+        self._reference_starts=[item[0] for item in references]
+        self._reference_entries=references
+
+    def _has_duplicate_keys(self,start,end):
+        i=bisect_left(self._duplicate_key_starts,start)
+        return i<len(self._duplicate_key_starts) and self._duplicate_key_starts[i]<end
+
+    def _binding_owner_nodes(self,key):
+        return self._owners_by_key[key]
+
+    def _binding_query_nodes(self):
+        return self._query_nodes
+
+    def _binding_reference_nodes(self,query):
+        left=bisect_left(self._reference_starts,query.start)
+        right=bisect_left(self._reference_starts,query.end)
+        # Parsing is postorder. Restore it explicitly, even if failed frame
+        # parses left overlapping/repeated nodes at the same character offset.
+        return (item[2] for item in sorted(self._reference_entries[left:right],key=lambda item:item[1]))
 
     def ws(self,p):
         while p<len(self.text) and self.text[p] in ' \r\n\t':p+=1
@@ -139,7 +179,7 @@ class Document:
         offset=int(m[1]);key=m[2];idx=json.loads(m[3]);arr=self.by_start.get(offset)
         if arr is None or not isinstance(arr.value,(dict,list)):raise BindingError('exact_array_offset_not_found')
         native=self.child(arr,idx)
-        if any(n.duplicate_keys for n in self.nodes if native.start<=n.start<native.end):
+        if self._has_duplicate_keys(native.start,native.end):
             raise BindingError('duplicate_native_row_json_key')
         if fingerprint(native.value)!=fingerprint(row.get('raw_fields')):raise BindingError('whole_native_raw_fields_mismatch')
         if isinstance(arr.value,dict):raise BindingError('dictionary_daily_scope_requires_review')
@@ -147,7 +187,7 @@ class Document:
             targets=self.frames.get(m[4],[])
             if len(targets)!=1 or targets[0].start!=offset:raise BindingError('old_array_reference_not_unique_exact_target')
         owners=[];related_errors=[]
-        for n in self.nodes:
+        for n in self._binding_owner_nodes(key):
             if not isinstance(n.value,dict) or key not in n.children:continue
             try:
                 resolved,chain=self.resolve(self.child(n,key))
@@ -163,14 +203,14 @@ class Document:
         # Require query.state.data to resolve to this exact object. An enclosing
         # query-like component or adjacent query is never enough.
         queries=[];ambiguous_query_refs=[]
-        for q in self.nodes:
+        for q in self._binding_query_nodes():
             if not isinstance(q.value,dict) or 'queryKey' not in q.children:continue
             try:
                 state,sc=self.resolve(self.child(q,'state'))
                 data,dc=self.resolve(self.child(state,'data'))
                 if data.start==owner.start:queries.append((q,sc+dc))
             except BindingError as e:
-                for child in self.nodes:
+                for child in self._binding_reference_nodes(q):
                     if q.start<=child.start<q.end and isinstance(child.value,str) and REF.fullmatch(child.value):
                         targets=self.frames.get(REF.fullmatch(child.value)[1],[])
                         if any(self.could_reach(t,owner.start) for t in targets):ambiguous_query_refs.append(str(e))
