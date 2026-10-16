@@ -20,10 +20,13 @@ import sys
 import uuid
 import zlib
 
-EXTRACTOR_VERSION = "or-new-native-observations/1.0.0"
+EXTRACTOR_VERSION = "or-new-native-observations/1.0.1"
 DATABASE_KIND = "or-new-append-only-observations-v1"
 APPLICATION_ID = 0x4F524E31
 CORE = ("count", "total_prompt_tokens", "total_completion_tokens")
+ENDPOINT_STATS_FIELDS = ("p50_latency", "p50_throughput", "request_count", "latency_metric",
+                        "latency_request_count", "throughput_request_count", "window_minutes",
+                        "throughput_window_minutes")
 CHARTS = {"leaderboard", "market_share", "tools", "images", "audio", "categories",
           "natural_languages", "programming_languages", "context_length"}
 REQUIRED_FILES = ("run.json", "catalog.json", "plan.json", "manifest.jsonl", "quality.json")
@@ -351,6 +354,12 @@ def extract_json(payload, event):
                  "endpoint_stats": "endpoint_performance_aux", "providers": "provider_directory", "zdr": "zdr_aux"}[endpoint]
         projection = {k: [(k,)] for k in (*CORE, "rank", "p50_latency", "p50_throughput", "request_count",
                       "best_latency_provider", "best_throughput_provider", "best_latency_price", "best_throughput_price", "provider_count")}
+        if endpoint == "endpoint_stats":
+            # The current endpoint response owns metrics under stats. Keep legacy
+            # flat rows readable, but never replace an explicit nested null/0/"".
+            # Retain separate source-declared windows; neither implies a daily
+            # count, an absolute measurement interval, or a verified metric unit.
+            projection.update({k: [("stats", k), (k,)] for k in ENDPOINT_STATS_FIELDS})
         vector_id = digest([event.get("sha256"), request_context, table, data])
         for i, raw in enumerate(data):
             if not isinstance(raw, dict):
@@ -360,6 +369,11 @@ def extract_json(payload, event):
             fields.update(native_rank_raw=scalar_text(raw.get("rank")), array_position_1based=str(i + 1), vector_id=vector_id,
                           vector_entity_count=str(len(data)))
             flags = ["array_position_not_official_rank", "measurement_window_unverified"]
+            if endpoint == "endpoint_stats":
+                for k in ENDPOINT_STATS_FIELDS:
+                    origins = ev[k]["all_present_paths"]
+                    if len({canonical(origin["raw"]) for origin in origins}) > 1:
+                        flags.append("endpoint_stats_field_conflict:" + k)
             if endpoint == "rankings_models":
                 flags.append("ranking_view_not_daily_analytics")
             if endpoint in {"fastest_models", "endpoint_stats"}:
@@ -551,7 +565,7 @@ def initialize_database(path):
     # These views expose candidates, never a greatest/latest automatic winner.
     tables = sorted(CHARTS | {"table1_daily", "model_attributes", "provider_endpoints", "rankings_history", "benchmarks",
                               "fastest_models", "provider_directory", "endpoint_performance_aux", "effective_pricing_aux", "zdr_aux"})
-    fields = set(ATTRIBUTE_PATHS) | set(CORE) | {"num_media_prompt", "num_media_completion", "num_audio_prompt",
+    fields = set(ATTRIBUTE_PATHS) | set(CORE) | set(ENDPOINT_STATS_FIELDS) | {"num_media_prompt", "num_media_completion", "num_audio_prompt",
         "total_native_tokens_reasoning", "total_native_tokens_cached", "total_tool_calls", "requests_with_tool_call_errors",
         "entity_raw", "entity_key", "value_numeric", "value_raw_json", "metric_series", "metric_unit", "window_key", "select_raw",
         "vector_id", "vector_entity_count", "forecast_configuration_raw", "native_rank_raw", "array_position_1based",

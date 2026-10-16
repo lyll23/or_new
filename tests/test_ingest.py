@@ -381,6 +381,92 @@ class IngestTests(unittest.TestCase):
         cs, _ = I.extract_json({"data": [{"id": "endpoint-a", "p50_latency": 1}, {"id": "endpoint-b", "p50_latency": 2}]}, event("endpoint_stats"))
         self.assertNotEqual(cs[0]["logical_key"], cs[1]["logical_key"])
 
+    def test_endpoint_stats_nested_metrics_and_separate_windows(self):
+        stats = {"p50_latency": Decimal("1289.7000000000016"), "p50_throughput": Decimal("18.000000000000001"),
+                 "latency_metric": "latency", "latency_request_count": 18, "throughput_request_count": 3085,
+                 "request_count": 19, "window_minutes": 30, "throughput_window_minutes": 1440}
+        raw = {"id": "endpoint-a", "stats": stats}
+        cs, issues = I.extract_json({"data": [raw]}, event("endpoint_stats"))
+        self.assertFalse(issues)
+        c = cs[0]
+        self.assertEqual(c["raw_record"], raw)
+        self.assertIsNone(c["business_date"])
+        for k, v in stats.items():
+            self.assertEqual(c["fields"][k], I.scalar_text(v))
+            self.assertEqual(c["evidence"][k]["source_path"], ["stats", k])
+        self.assertIn("performance_units_and_measurement_window_unverified", c["quality_flags"])
+
+    def test_endpoint_stats_present_nested_null_empty_zero_and_conflict(self):
+        for value in (None, "", 0, Decimal("0.000")):
+            with self.subTest(value=value):
+                raw = {"id": "endpoint-a", "p50_latency": 999, "stats": {"p50_latency": value}}
+                cs, _ = I.extract_json({"data": [raw]}, event("endpoint_stats"))
+                c = cs[0]
+                self.assertEqual(c["fields"]["p50_latency"], I.scalar_text(value))
+                self.assertEqual(c["evidence"]["p50_latency"]["source_path"], ["stats", "p50_latency"])
+                self.assertEqual(c["evidence"]["p50_latency"]["all_present_paths"],
+                                 [{"path": ["stats", "p50_latency"], "raw": value}, {"path": ["p50_latency"], "raw": 999}])
+                self.assertIn("endpoint_stats_field_conflict:p50_latency", c["quality_flags"])
+
+    def test_endpoint_stats_legacy_fallback_only_when_nested_field_absent(self):
+        for container in ({}, {"stats": {}}, {"stats": None}, {"stats": []}):
+            with self.subTest(container=container):
+                raw = {"id": "endpoint-a", "p50_latency": 0, "request_count": None, **container}
+                cs, _ = I.extract_json({"data": [raw]}, event("endpoint_stats"))
+                c = cs[0]
+                self.assertEqual(c["fields"]["p50_latency"], "0")
+                self.assertEqual(c["evidence"]["p50_latency"]["source_path"], ["p50_latency"])
+                self.assertEqual(c["evidence"]["request_count"]["state"], "null")
+                self.assertEqual(c["evidence"]["p50_throughput"]["state"], "absent")
+
+    def test_endpoint_stats_null_throughput_and_missing_window_not_filled(self):
+        raw = {"id": "endpoint-a", "stats": {"p50_latency": None, "p50_throughput": None,
+               "request_count": 123, "throughput_request_count": 0, "window_minutes": 30}}
+        cs, _ = I.extract_json({"data": [raw]}, event("endpoint_stats"))
+        c = cs[0]
+        self.assertIsNone(c["fields"]["p50_latency"])
+        self.assertIsNone(c["fields"]["p50_throughput"])
+        self.assertEqual(c["fields"]["throughput_request_count"], "0")
+        self.assertIsNone(c["fields"]["latency_request_count"])
+        self.assertIsNone(c["fields"]["throughput_window_minutes"])
+        self.assertEqual(c["evidence"]["throughput_window_minutes"]["state"], "absent")
+
+    def test_endpoint_stats_equal_alternatives_not_flagged(self):
+        cs, _ = I.extract_json({"data": [{"p50_latency": 0, "stats": {"p50_latency": 0}}]}, event("endpoint_stats"))
+        self.assertEqual(len(cs[0]["evidence"]["p50_latency"]["all_present_paths"]), 2)
+        self.assertNotIn("endpoint_stats_field_conflict:p50_latency", cs[0]["quality_flags"])
+
+    def test_fastest_models_projection_remains_flat(self):
+        raw = {"p50_latency": 1, "p50_throughput": None, "request_count": 0,
+               "stats": {"p50_latency": 2, "p50_throughput": 3, "request_count": 4, "window_minutes": 30}}
+        cs, _ = I.extract_json({"data": [raw]}, event("fastest_models"))
+        self.assertEqual(cs[0]["fields"]["p50_latency"], "1")
+        self.assertIsNone(cs[0]["fields"]["p50_throughput"])
+        self.assertEqual(cs[0]["fields"]["request_count"], "0")
+        self.assertNotIn("window_minutes", cs[0]["fields"])
+
+    def test_endpoint_stats_SQLite_CSV_precision_provenance_and_idempotence(self):
+        raw = {"id": "endpoint-a", "stats": {"p50_latency": Decimal("0.12345678901234567890123456789"),
+               "p50_throughput": None, "request_count": 900719925474099312345,
+               "throughput_request_count": 0, "window_minutes": 30, "throughput_window_minutes": 1440}}
+        p = batch(self.root, entries=[(event("endpoint_stats"), {"data": [raw]})])
+        I.ingest(p, self.db)
+        I.ingest(p, self.db)
+        self.assertEqual(self.query("SELECT count(*) FROM v_endpoint_performance_aux"), [(1,)])
+        row = self.query("SELECT p50_latency,p50_throughput,request_count,throughput_request_count,"
+                         "window_minutes,throughput_window_minutes,raw_record_json FROM v_endpoint_performance_aux")[0]
+        self.assertEqual(row[:6], ("0.12345678901234567890123456789", None, "900719925474099312345", "0", "30", "1440"))
+        self.assertEqual(I.loads(row[6]), raw)
+        out = self.root / "endpoint-exports"
+        I.export_views(self.db, out)
+        import csv
+        with (out / "endpoint_performance_aux.csv").open(encoding="utf-8-sig", newline="") as f:
+            exported = list(csv.DictReader(f))
+        self.assertEqual(len(exported), 1)
+        self.assertEqual(exported[0]["p50_latency"], row[0])
+        self.assertEqual(exported[0]["request_count"], row[2])
+        self.assertEqual(I.loads(exported[0]["evidence_json"])["p50_throughput"]["state"], "null")
+
     def test_shared_body_qualification_is_per_response_both_orders(self):
         payload = {"data": {"analytics": [daily()], "cachedAt": 1786968000000}}
         for n, order in enumerate((("later", "earlier"), ("earlier", "later"))):
