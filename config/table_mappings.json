@@ -32,7 +32,7 @@
   ],
   "auxiliary_views": {
     "v_provider_directory": "providers /data array; not endpoint UUID observations",
-    "v_endpoint_performance_aux": "endpoint_stats /data array; not daily model activity",
+    "v_endpoint_performance_aux": "endpoint_stats /data array; stats fields take first-present precedence over legacy flat fields, including explicit null/empty/zero. All origins and conflicts retained. p50_latency/p50_throughput units remain unverified; latency_metric, latency_request_count, throughput_request_count, window_minutes and throughput_window_minutes are raw source values. Missing throughput window stays missing; request_count is not daily model activity.",
     "v_effective_pricing_aux": "effective_pricing /data/providerSummaries; not model catalog price",
     "v_zdr_aux": "zdr /data array only; alternate schema explicitly unparsed"
   },
